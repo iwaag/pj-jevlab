@@ -1,0 +1,21 @@
+# JevBench cross-model tiers: encoders vs LLM readers, and per-family hard-tier results for jeff, Decider and Kev-derived models
+
+- **Sources:** https://github.com/logan-markewich/jeff `bench/RESULTS.md` (sections "Official result (JevBench v1.2.2)", "JevBench public tiers", "Published systems on the same public items", "Hard tier by family"); https://github.com/fstandhartinger/jevbench `results/v1.4.2.2/jevbench-v1.4.2.2-family-supplement.json` (key `hard_by_family`), `RESULTS.md` (v1, superseded; sections "By cohort", "By family"), `docs/METHOD-v1.4.md` (line describing the 308-item set); https://benchmarkheaven.com/jev-models (not fetched; cited via the repos) (accessed 2026-10-02)
+- **Evidence type:** independent evaluation (JevBench is run by Benchmark Heaven, not a model author) for the official rows; author evaluation for jeff's own re-runs. Author independence: JevBench yes for most rows; some systems were run by the system's own author (noted in the harness "how each system was reached" table).
+- **Model / checkpoint:** jeff = `knowledgator/gliformer-large-v1` (575.6M per card); Laya (ModernBERT-large 421M); open-jev-deberta-v3-large (434M); SemIf Qwen3.5-4B; Jev 1.13.0 hosted; Decider/Malkuth/others from the family-supplement artifact.
+- **Task:** JevBench typed decisions (easy 48 / standard 72 / hard 111 public items; official hard 220), English. **Readout:** each system's own. **Rejection mechanism:** hard-tier families include ambiguous/abstain, trap and adversarial items, but these are item-level traps in decision text, not prompt-injection or instruction-override attacks (METHOD-v1.4 lists "abstention ... adversarial traps" without definition of an injection class).
+- **Configuration:** jeff official row ran on the benchmark author's 4-thread Ryzen CPU with defaults; jeff's own re-run on M2 Max MPS fp32 gave the same accuracy within one item.
+- **Raw cases available:** yes (per-task artifact in the repos).
+- **Relevant local classes:** L1-L4, Q1, Q3, Q4, Q8
+
+## What the source reports
+- Public tiers, same items: easy ~100% for almost all; standard (72): Jev 98.6, SemIf (Qwen3.5-4B) 98.6, Laya 69.4, jeff 75.0, open-jev-deberta 43.1; hard (111): Jev 73.0, djev 67.6, SemIf 61.3, jeff 38.7, open-jev-deberta 37.8, Laya 35.1 (official hard 220: 74.1 / 69.5 / 59.5 / 37.7 / 36.4 / 34.1). Encoders of 400-575M cluster at 35-39% hard; a frozen 4B LLM reader is 61%.
+- jeff hard-tier families on the public 111: adversarial 6/6, trap 4/8, ambiguous 0/7 (Jev 6/7), long_policy 2/19 (Jev 12/19), multi_hop 7/18 (Jev 15/18). Official 220: ambiguous 0/14, adversarial 7/12, trap 11/16.
+- Same family supplement for small trained LLM readers (official hard families, correct/n): decider-4b-v2 ambiguous 10/14, adversarial 11/12, trap 16/16; malkuth-4b (Kev-derived LoRA on Qwen3.5-4B-Base) ambiguous 8/14, adversarial 11/12, trap 16/16; malkuth-2b ambiguous 4/14, adversarial 9/12, trap 15/16; cygnet (stock Gemma-4-12B-it) ambiguous 13/14, adversarial 12/12, trap 16/16; clm-8b ambiguous 4/14, adversarial 4/12, trap 8/16. Bigger helps for the same recipe (malkuth 2B -> 4B: ambiguous 4/14 -> 8/14) but clm-8b shows size does not guarantee it.
+- jeff calibration: hard-tier ECE 0.185-0.226, flattened by temperature 3.2 (mean top-label confidence 0.54).
+- v1 (superseded, 242 decisions, 2026-09-19): openjev-sglang (Qwen3.6-35B-A3B) 95.5% vs system-one-open (Gemma 4 E2B LoRA) 90.1% vs open-jev-deberta-v3-large local CPU much lower (routing family 25.5% vs 90.4-100% for LLM readers) vs Jev 96.3% (jevbench RESULTS.md table "The table"/"By family"; value for Jev read from the same document's line 46).
+
+## Strength and caveats
+- The most independent cross-model comparison available: encoder-class wrappers sit well below LLM readers on hard items, and 4B LLM readers are within ~10 points of Jev. This supports a capacity/training difference between class A and class C/D but cannot separate scale from architecture or training data.
+- No JevBench subset measures "greeting accepted as an option" or "request for a missing action"; jeff scoring 6/6 adversarial shows those items are a different phenomenon from L4.
+- n per family is 7-38; differences of 1-3 items are noise. The v1 table is superseded by later versions.

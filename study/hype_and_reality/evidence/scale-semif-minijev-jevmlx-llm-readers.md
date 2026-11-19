@@ -1,0 +1,22 @@
+# Training-free LLM option-logit readers: SemIf model ladder, mini-jev out-of-scope probe, jevmlx on Apple Silicon
+
+- **Sources:** https://github.com/TheoLeeCJ/SemIf `docs/RESULTS.md` (tables "Semantic quality", "Robustness and confidence"), `README.md` ("Browser model ladder"), `docs/APPLE_SILICON.md`, `docs/MLX.md`; https://github.com/r-ms/mini-jev `README.md` (table "Where does reading lose?" and abstention row); https://github.com/bnsd55/jevmlx `README.md` (model presets, leaderboard table, "DRIFT" column) (accessed 2026-10-02)
+- **Evidence type:** author evaluation for all three; author independence: yes among each other (three unrelated authors), no relative to their own models.
+- **Model / checkpoint:** SemIf: Qwen3-0.6B (Q8_0), MiniCPM5-2B (Q4_K_M), Qwen3.5-4B (pinned revision 851bf6e8..., BF16 scoring), 27B via EXL3 (Qwen3.8-27B 5 bpw, CUDA only). mini-jev: `Qwen/Qwen3-4B-Instruct-2507` bf16. jevmlx presets: `quality` mlx-community/Qwen2.5-7B-Instruct-4bit, `fast` Qwen2.5-3B-Instruct-4bit, `test` Qwen2.5-1.5B-Instruct-4bit (the README, not Qwen3); leaderboard also Qwen3-8B-4bit.
+- **Task / readout:** next-token logits restricted to option letters/names; no training. SemIf mixes "direct logits"; mini-jev compares letters vs option names vs xgrammar JSON; jevmlx compares `labels`, `slots`, naive generate+parse.
+- **Rejection mechanism:** SemIf: an `insufficient` option on a 36-row missing-evidence set; mini-jev: "none of the above" option on CLINC150 out-of-scope texts.
+- **Data provenance:** SemIf authored 144 rows + WANLI 256 + 102-row TypeSafe-public subset; mini-jev 450 CLINC150 texts (6,750 paired observations, 27,900 decisions, run records on HF dataset Mikhail/mini-jev-runs); jevmlx 45 public TypeSafe example cases with consensus labels from two closed LLMs.
+- **Configuration:** SemIf RTX 3090; MLX/MPS on M5 24 GB; jevmlx M5 Max 128 GB.
+- **Raw cases available:** SemIf yes (committed rows, hashes); mini-jev yes; jevmlx partial.
+- **Relevant local classes:** L2, L3, L4, L5, Q1, Q4, Q5
+
+## What the source reports
+- SemIf ladder, same direct-logit readout, authored balanced accuracy / TypeSafe-subset agreement: Qwen3-0.6B 0.440 / 0.407; MiniCPM5-2B 0.686 / 0.637; Qwen3.5-4B 0.813 / 0.845; published Jev 0.883 on the same subset. The 27B EXL3 run reaches 0.958 on authored rows (system-level comparison, not a controlled ablation). Models in the ladder are different families, so only the 4B vs 27B pair shares tokenization conventions closely, and that pair also differs in quantization.
+- SemIf robustness: option reversal flips 10 answers, wrapper 9, irrelevant context 4 (36 base cases) for the 4B; on the 36-row missing-evidence set the 4B and the reranker each made one non-`insufficient` choice above 0.8 score, so the authors say scores are not operationally calibrated.
+- mini-jev (Qwen3-4B-Instruct): out-of-scope texts: letters read "none of the above" on 41/50, JSON generation on 47/50 (both 1/50 wrong-way on in-scope); the author calls it "a direction, not a measured size". Letters beat option-name tokens by +10.0 pp on intent. The shares are "normalized candidate scores, not calibrated probabilities".
+- jevmlx: agreement with consensus label on 45 cases: Qwen3-8B-4bit `labels` 84.6% vs naive 69.3% vs `slots` 34.7%; Qwen2.5-7B-4bit `labels` 82.1%, `slots` 63.2%. Parity check flags DRIFT 0.750 for Qwen3-8B and 0.078 for Qwen2.5-7B between batched and single-call scores. Opposite conclusion to mini-jev on letters vs names (different models/tasks).
+- Apple Silicon (SemIf, documented): both PyTorch MPS and MLX run the 4B; M5 24 GB warm direct decision ~0.6 s (MPS) vs ~0.26 s (MLX); peak MLX allocation ~8.6 GB; MPS falls back to reference kernels for Qwen3.5's hybrid layers. No `/v1/systemone` server is documented. jevmlx documents Apple Silicon only (M1+, Python 3.12+) and exposes `/v1/systemone`.
+
+## Strength and caveats
+- Shows scale helps inside one readout (0.6B -> 2B -> 4B -> 27B) on authored cases, and that a frozen 4B is within ~4 points of Jev on a small selected subset. Does not isolate rejection of greetings or unavailable actions; the one rejection probe (mini-jev, n = 50) shows letter-reading abstains less often than JSON generation.
+- Readout choices (letters vs names vs slots) move accuracy by 10-50 points and can contradict each other across models, so the readout is a confounder larger than some size steps.
